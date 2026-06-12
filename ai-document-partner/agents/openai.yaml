@@ -1,0 +1,4 @@
+interface:
+  display_name: "AI 文档伴侣"
+  short_description: "启动本地 Markdown/HTML 文档浏览服务。"
+  default_prompt: "启动 AI-document-partner，在当前项目打开 Markdown/HTML 在线浏览服务，并告诉我访问地址。"

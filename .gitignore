@@ -1,0 +1,10 @@
+__pycache__/
+*.py[cod]
+
+.skill-build/
+.env
+.venv/
+venv/
+
+.DS_Store
+Thumbs.db
