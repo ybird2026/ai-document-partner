@@ -19,9 +19,10 @@ from pathlib import Path
 DEFAULT_PORT = 8027
 DEFAULT_HOST = "0.0.0.0"
 APP_NAME = "AI 文档伴侣"
+SKILL_DIR = Path(__file__).resolve().parents[1]
+FAVICON_PATH = SKILL_DIR / "assets" / "icon.png"
 PORT_FILE = Path(".skill-build") / "ai-document-partner.port"
 SKIP_DIRS = {".git", ".cursor", ".trae", ".vscode", "__pycache__", "node_modules", "回收站"}
-FAVICON_SVG = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="16" fill="#2563eb"/><path d="M18 12h22l10 10v30H18z" fill="#fff"/><path d="M40 12v12h10" fill="#dbeafe"/><path d="M24 43l5-18h6l5 18h-5l-.9-4h-7.2l-.9 4zm4-8h5.2l-2.6-10z" fill="#2563eb"/><path d="M43 30h5v13h-5zM43 24h5v4h-5z" fill="#2563eb"/></svg>"""
 
 
 class ThreadingTCPServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
@@ -140,14 +141,13 @@ def build_table(rows: list[list[str]]) -> str:
 
 
 def page(title: str, body: str) -> bytes:
-    favicon_href = "data:image/svg+xml," + urllib.parse.quote(FAVICON_SVG)
     document = f"""<!doctype html>
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="theme-color" content="#2563eb">
-<link rel="icon" href="{html.escape(favicon_href)}" type="image/svg+xml">
+<link rel="icon" href="/favicon.png" type="image/png">
 <title>{html.escape(title)}</title>
 <style>
 :root {{
@@ -343,12 +343,27 @@ class BrowserHandler(http.server.SimpleHTTPRequestHandler):
         if parsed.path in {"", "/"}:
             self.send_index()
             return
+        if parsed.path == "/favicon.png":
+            self.send_favicon()
+            return
         if parsed.path == "/view":
             params = urllib.parse.parse_qs(parsed.query)
             rel = params.get("path", [""])[0]
             self.send_file_view(rel)
             return
         super().do_GET()
+
+    def send_favicon(self) -> None:
+        if not FAVICON_PATH.is_file():
+            self.send_error(404, "Favicon not found")
+            return
+        data = FAVICON_PATH.read_bytes()
+        self.send_response(200)
+        self.send_header("Content-Type", "image/png")
+        self.send_header("Cache-Control", "public, max-age=86400")
+        self.send_header("Content-Length", str(len(data)))
+        self.end_headers()
+        self.wfile.write(data)
 
     def send_index(self) -> None:
         files = list_files(self.root)
