@@ -18,6 +18,7 @@ description: "启动 AI 文档伴侣：一个本地 Web 服务，用新版 Works
 - 点击文件时新窗口打开预览
 - Markdown 文件实时渲染为 HTML
 - HTML 文件直接展示原始页面
+- 生成 `AI 文档伴侣｜项目名` 风格的浏览器标题，并内置 SVG favicon
 - 跳过 `.git`、`.cursor`、`.trae`、`.vscode`、`__pycache__`、`node_modules`、`回收站` 等目录
 - 默认从 `8027` 启动；如果端口被占用，自动尝试 `8028`、`8029`，最多尝试 20 个端口
 - 启动后将实际端口写入 `.skill-build/ai-document-partner.port`

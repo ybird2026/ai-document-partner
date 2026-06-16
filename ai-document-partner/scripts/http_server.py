@@ -18,8 +18,10 @@ from pathlib import Path
 
 DEFAULT_PORT = 8027
 DEFAULT_HOST = "0.0.0.0"
+APP_NAME = "AI 文档伴侣"
 PORT_FILE = Path(".skill-build") / "ai-document-partner.port"
 SKIP_DIRS = {".git", ".cursor", ".trae", ".vscode", "__pycache__", "node_modules", "回收站"}
+FAVICON_SVG = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="16" fill="#2563eb"/><path d="M18 12h22l10 10v30H18z" fill="#fff"/><path d="M40 12v12h10" fill="#dbeafe"/><path d="M24 43l5-18h6l5 18h-5l-.9-4h-7.2l-.9 4zm4-8h5.2l-2.6-10z" fill="#2563eb"/><path d="M43 30h5v13h-5zM43 24h5v4h-5z" fill="#2563eb"/></svg>"""
 
 
 class ThreadingTCPServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
@@ -138,11 +140,14 @@ def build_table(rows: list[list[str]]) -> str:
 
 
 def page(title: str, body: str) -> bytes:
+    favicon_href = "data:image/svg+xml," + urllib.parse.quote(FAVICON_SVG)
     document = f"""<!doctype html>
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#2563eb">
+<link rel="icon" href="{html.escape(favicon_href)}" type="image/svg+xml">
 <title>{html.escape(title)}</title>
 <style>
 :root {{
@@ -323,6 +328,10 @@ def folder_label(path: str) -> str:
     return "项目根目录" if not path else path
 
 
+def project_label(root: Path) -> str:
+    return root.name or str(root)
+
+
 class BrowserHandler(http.server.SimpleHTTPRequestHandler):
     root: Path
 
@@ -388,16 +397,17 @@ class BrowserHandler(http.server.SimpleHTTPRequestHandler):
         else:
             explorer = '<section class="explorer"><div class="empty-state">当前目录没有 Markdown 或 HTML 文档</div></section>'
 
+        project_name = project_label(self.root)
         body = (
             '<main class="shell">'
             '<div class="topbar"><div>'
-            '<h1 class="title">Workspace Markdown/HTML Browser</h1>'
-            f'<div class="meta">{len(files)} files under {html.escape(str(self.root))}</div>'
+            f'<h1 class="title">{html.escape(APP_NAME)}</h1>'
+            f'<div class="meta">{len(files)} 个文档 · {html.escape(str(self.root))}</div>'
             '</div></div>'
             f'{explorer}'
             '</main>'
         )
-        self.send_bytes(page("Workspace Browser", body))
+        self.send_bytes(page(f"{APP_NAME}｜{project_name}", body))
 
     def send_file_view(self, rel: str) -> None:
         target = (self.root / rel).resolve()
@@ -424,13 +434,13 @@ class BrowserHandler(http.server.SimpleHTTPRequestHandler):
         text = target.read_text(encoding="utf-8", errors="replace")
         body = (
             '<main class="shell">'
-            '<a class="back" href="/">Back to files</a>'
+            '<a class="back" href="/">返回文档列表</a>'
             '<article class="content">'
             f'<h1>{html.escape(target.name)}</h1>'
             f'{markdown_to_html(text)}'
             '</article></main>'
         )
-        self.send_bytes(page(target.name, body))
+        self.send_bytes(page(f"{target.name}｜{APP_NAME}", body))
 
     def send_bytes(self, data: bytes) -> None:
         self.send_response(200)
