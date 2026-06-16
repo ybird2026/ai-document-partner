@@ -1,6 +1,6 @@
 # AI 文档伴侣
 
-AI 文档伴侣是一个 Codex 技能，用来在本地启动 Workspace 风格的 Markdown/HTML 在线浏览服务。它适合用于预览项目文档、浏览 HTML 报告、在本机或局域网中分享文档页面。
+AI 文档伴侣是一个 AI Skill，用来在本地启动 Workspace 风格的 Markdown/HTML 在线浏览服务。它适合用于预览项目文档、浏览 HTML 报告、在本机或局域网中分享文档页面。
 
 ## 能做什么
 
