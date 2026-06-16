@@ -146,13 +146,14 @@ def build_table(rows: list[list[str]]) -> str:
 
 
 def page(title: str, body: str) -> bytes:
+    favicon_version = int(FAVICON_PATH.stat().st_mtime) if FAVICON_PATH.is_file() else 0
     document = f"""<!doctype html>
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="theme-color" content="#2563eb">
-<link rel="icon" href="/favicon.png" type="image/png">
+<link rel="icon" href="/favicon.png?v={favicon_version}" type="image/png">
 <title>{html.escape(title)}</title>
 <style>
 :root {{
