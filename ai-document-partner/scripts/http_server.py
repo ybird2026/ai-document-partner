@@ -20,7 +20,7 @@ DEFAULT_PORT = 8027
 DEFAULT_HOST = "0.0.0.0"
 APP_NAME = "AI 文档伴侣"
 SKILL_DIR = Path(__file__).resolve().parents[1]
-FAVICON_PATH = SKILL_DIR / "assets" / "icon.svg"
+FAVICON_PATH = SKILL_DIR / "assets" / "icon.png"
 PORT_FILE = Path(".skill-build") / "ai-document-partner.port"
 SKIP_DIRS = {".git", ".cursor", ".trae", ".vscode", "__pycache__", "node_modules", "回收站"}
 SORT_LABELS = {"name": "名称", "modified": "修改日期", "type": "类型", "size": "大小"}
@@ -153,7 +153,7 @@ def page(title: str, body: str) -> bytes:
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="theme-color" content="#2563eb">
-<link rel="icon" href="/favicon.svg?v={favicon_version}" type="image/svg+xml">
+<link rel="icon" href="/favicon.png?v={favicon_version}" type="image/png">
 <title>{html.escape(title)}</title>
 <style>
 :root {{
@@ -411,7 +411,7 @@ class BrowserHandler(http.server.SimpleHTTPRequestHandler):
             params = urllib.parse.parse_qs(parsed.query)
             self.send_index(params)
             return
-        if parsed.path == "/favicon.svg":
+        if parsed.path == "/favicon.png":
             self.send_favicon()
             return
         if parsed.path == "/view":
@@ -427,7 +427,7 @@ class BrowserHandler(http.server.SimpleHTTPRequestHandler):
             return
         data = FAVICON_PATH.read_bytes()
         self.send_response(200)
-        self.send_header("Content-Type", "image/svg+xml; charset=utf-8")
+        self.send_header("Content-Type", "image/png")
         self.send_header("Cache-Control", "public, max-age=86400")
         self.send_header("Content-Length", str(len(data)))
         self.end_headers()

@@ -10,7 +10,7 @@ AI 文档伴侣是一个 AI Skill，用来在本地启动 Workspace 风格的 Ma
 - 显示文件类型、修改时间和文件大小。
 - 点击文件时新窗口打开预览。
 - Markdown 文件实时渲染为 HTML。
-- 自动生成中文标签页标题，并使用 AI 文档伴侣 SVG 图标作为 favicon。
+- 自动生成中文标签页标题，并使用 AI 文档伴侣 PNG 图标作为 favicon。
 - HTML 文件直接展示原始页面。
 - 默认从 `8027` 启动；如果端口被占用，自动尝试 `8028`、`8029` 等后续端口。
 - 启动后将实际端口写入 `.skill-build/ai-document-partner.port`。
@@ -23,7 +23,7 @@ ai-document-partner/
 ├── agents/
 │   └── openai.yaml
 ├── assets/
-│   └── icon.svg
+│   └── icon.png
 └── scripts/
     └── http_server.py
 ```
