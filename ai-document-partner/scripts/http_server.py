@@ -23,6 +23,11 @@ SKILL_DIR = Path(__file__).resolve().parents[1]
 FAVICON_PATH = SKILL_DIR / "assets" / "icon.png"
 PORT_FILE = Path(".skill-build") / "ai-document-partner.port"
 SKIP_DIRS = {".git", ".cursor", ".trae", ".vscode", "__pycache__", "node_modules", "回收站"}
+SORT_LABELS = {"name": "名称", "modified": "修改日期", "type": "类型", "size": "大小"}
+SORT_DEFAULT_DIRECTIONS = {"name": "asc", "modified": "desc", "type": "asc", "size": "desc"}
+DEFAULT_SORT = "modified"
+DEFAULT_SORT_DIR = "desc"
+VALID_SORT_DIRS = {"asc", "desc"}
 
 
 class ThreadingTCPServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
@@ -195,10 +200,22 @@ a:hover {{ text-decoration: underline; }}
   font-size: 13px;
   font-weight: 650;
 }}
-.columns span,
-.file-row span {{ padding: 0 12px; }}
-.columns span + span,
-.file-row span + span {{ border-left: 1px solid var(--line); }}
+.columns > span,
+.file-row > span {{ padding: 0 12px; }}
+.columns > span + span,
+.file-row > span + span {{ border-left: 1px solid var(--line); }}
+.sort-link {{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  min-width: 0;
+  color: inherit;
+  text-decoration: none;
+}}
+.sort-link:hover {{ color: var(--accent); text-decoration: none; }}
+.sort-link.active {{ color: #174ea6; }}
+.sort-mark {{ color: var(--accent); font-size: 12px; margin-left: 6px; }}
 .folder {{ border-bottom: 1px solid #edf1f6; }}
 .folder:last-child {{ border-bottom: 0; }}
 .folder summary {{
@@ -332,6 +349,55 @@ def project_label(root: Path) -> str:
     return root.name or str(root)
 
 
+def normalize_sort_params(params: dict[str, list[str]]) -> tuple[str, str]:
+    sort_key = params.get("sort", [DEFAULT_SORT])[0]
+    if sort_key not in SORT_LABELS:
+        return DEFAULT_SORT, DEFAULT_SORT_DIR
+
+    if "dir" not in params:
+        return sort_key, SORT_DEFAULT_DIRECTIONS[sort_key]
+
+    sort_dir = params.get("dir", [""])[0]
+    if sort_dir not in VALID_SORT_DIRS:
+        return DEFAULT_SORT, DEFAULT_SORT_DIR
+    return sort_key, sort_dir
+
+
+def sort_files(paths: list[Path], sort_key: str, sort_dir: str) -> list[Path]:
+    by_name = sorted(paths, key=lambda path: path.name.lower())
+    reverse = sort_dir == "desc"
+    if sort_key == "name":
+        return sorted(by_name, key=lambda path: path.name.lower(), reverse=reverse)
+    if sort_key == "modified":
+        return sorted(by_name, key=lambda path: path.stat().st_mtime, reverse=reverse)
+    if sort_key == "type":
+        return sorted(by_name, key=lambda path: file_type_label(path), reverse=reverse)
+    if sort_key == "size":
+        return sorted(by_name, key=lambda path: path.stat().st_size, reverse=reverse)
+    return sort_files(by_name, DEFAULT_SORT, DEFAULT_SORT_DIR)
+
+
+def sort_header(label: str, key: str, current_sort: str, current_dir: str) -> str:
+    is_active = key == current_sort
+    next_dir = "asc" if is_active and current_dir == "desc" else "desc" if is_active else SORT_DEFAULT_DIRECTIONS[key]
+    marker = " ↓" if is_active and current_dir == "desc" else " ↑" if is_active else ""
+    active_class = " active" if is_active else ""
+    href = f"/?sort={urllib.parse.quote(key)}&dir={urllib.parse.quote(next_dir)}"
+    return (
+        f'<a class="sort-link{active_class}" href="{href}">'
+        f'<span>{html.escape(label)}</span><span class="sort-mark">{html.escape(marker)}</span>'
+        '</a>'
+    )
+
+
+def build_columns(current_sort: str, current_dir: str) -> str:
+    headers = "".join(
+        f"<span>{sort_header(label, key, current_sort, current_dir)}</span>"
+        for key, label in SORT_LABELS.items()
+    )
+    return f'<div class="columns">{headers}</div>'
+
+
 class BrowserHandler(http.server.SimpleHTTPRequestHandler):
     root: Path
 
@@ -341,7 +407,8 @@ class BrowserHandler(http.server.SimpleHTTPRequestHandler):
     def do_GET(self):
         parsed = urllib.parse.urlparse(self.path)
         if parsed.path in {"", "/"}:
-            self.send_index()
+            params = urllib.parse.parse_qs(parsed.query)
+            self.send_index(params)
             return
         if parsed.path == "/favicon.png":
             self.send_favicon()
@@ -365,7 +432,8 @@ class BrowserHandler(http.server.SimpleHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(data)
 
-    def send_index(self) -> None:
+    def send_index(self, params: dict[str, list[str]]) -> None:
+        current_sort, current_dir = normalize_sort_params(params)
         files = list_files(self.root)
         groups: dict[str, list[Path]] = defaultdict(list)
         for path in files:
@@ -375,7 +443,7 @@ class BrowserHandler(http.server.SimpleHTTPRequestHandler):
         sections = []
         for folder in sorted(groups.keys(), key=lambda value: (value != "", value.lower())):
             rows = []
-            for path in sorted(groups[folder], key=lambda value: value.name.lower()):
+            for path in sort_files(groups[folder], current_sort, current_dir):
                 rel = path.relative_to(self.root).as_posix()
                 suffix = path.suffix.lower().lstrip(".")
                 kind = "md" if suffix == "md" else "html"
@@ -405,7 +473,7 @@ class BrowserHandler(http.server.SimpleHTTPRequestHandler):
         if sections:
             explorer = (
                 '<section class="explorer">'
-                '<div class="columns"><span>名称</span><span>修改日期</span><span>类型</span><span>大小</span></div>'
+                f'{build_columns(current_sort, current_dir)}'
                 f'{"".join(sections)}'
                 '</section>'
             )
