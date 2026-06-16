@@ -1,18 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" role="img" aria-label="AI 文档伴侣">
-  <rect x="8" y="8" width="84" height="84" rx="20" fill="#ffffff"/>
-  <path d="M25 26h34l16 16v34H25z" fill="none" stroke="#3b82c4" stroke-width="5" stroke-linejoin="round"/>
-  <path d="M59 26v17h16" fill="none" stroke="#3b82c4" stroke-width="5" stroke-linejoin="round"/>
-  <path d="M35 49h25M35 60h25M35 71h15" fill="none" stroke="#3b82c4" stroke-width="5" stroke-linecap="round"/>
-  <g fill="none" stroke="#667eea" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
-    <path d="M72 29v30M72 29l-11-6M72 29l11-6M72 29l-15 9M72 29l15 9M72 29l-9 18M72 29l9 18"/>
-  </g>
-  <g fill="#667eea">
-    <circle cx="72" cy="29" r="5"/>
-    <circle cx="61" cy="23" r="4"/>
-    <circle cx="83" cy="23" r="4"/>
-    <circle cx="57" cy="38" r="4"/>
-    <circle cx="87" cy="38" r="4"/>
-    <circle cx="63" cy="47" r="4"/>
-    <circle cx="81" cy="47" r="4"/>
-  </g>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="AI 文档伴侣">
+  <rect width="64" height="64" rx="14" fill="#2563eb"/>
+  <path d="M16 10h24l10 10v34H16z" fill="#ffffff"/>
+  <path d="M40 10v12h10z" fill="#bfdbfe"/>
+  <text x="32" y="43" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="23" font-weight="900" fill="#2563eb">AI</text>
 </svg>
