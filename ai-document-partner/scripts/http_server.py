@@ -180,7 +180,7 @@ a:hover {{ text-decoration: underline; }}
 .topbar {{ display: flex; justify-content: space-between; gap: 18px; align-items: end; margin-bottom: 4px; }}
 .title {{ margin: 0; font-size: 24px; line-height: 1.25; }}
 .meta {{ color: var(--muted); font-size: 13px; margin-top: 6px; }}
-.remote-tip {{ margin: 0 0 14px; color: #d92d20; font-size: 14px; font-weight: 650; line-height: 1.6; }}
+.remote-tip {{ margin: 0 0 14px; color: var(--muted); font-size: 13px; font-weight: 400; line-height: 1.6; }}
 .remote-tip a {{ color: inherit; text-decoration: underline; text-underline-offset: 2px; }}
 .explorer {{
   overflow: hidden;
