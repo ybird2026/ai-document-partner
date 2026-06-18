@@ -11,6 +11,7 @@ AI 文档伴侣是一个 AI Skill，用来在本地启动 Workspace 风格的 Ma
 - 点击文件时新窗口打开预览。
 - Markdown 文件实时渲染为 HTML。
 - 自动生成中文标签页标题，并使用 AI 文档伴侣 ICO 图标作为 favicon。
+- 提供远程访问提示，并链接到[蒲公英](http://url.oray.com/i/47635)和[花生壳](http://url.oray.com/i/47634)内网穿透工具。
 - HTML 文件直接展示原始页面。
 - 默认从 `8027` 启动；如果端口被占用，自动尝试 `8028`、`8029` 等后续端口。
 - 启动后将实际端口写入 `.skill-build/ai-document-partner.port`。

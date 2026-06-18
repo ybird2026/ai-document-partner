@@ -177,9 +177,11 @@ body {{
 a {{ color: var(--accent); text-decoration: none; }}
 a:hover {{ text-decoration: underline; }}
 .shell {{ max-width: 1120px; margin: 0 auto; padding: 28px 22px 56px; }}
-.topbar {{ display: flex; justify-content: space-between; gap: 18px; align-items: end; margin-bottom: 22px; }}
+.topbar {{ display: flex; justify-content: space-between; gap: 18px; align-items: end; margin-bottom: 4px; }}
 .title {{ margin: 0; font-size: 24px; line-height: 1.25; }}
 .meta {{ color: var(--muted); font-size: 13px; margin-top: 6px; }}
+.remote-tip {{ margin: 0 0 14px; color: #d92d20; font-size: 14px; font-weight: 650; line-height: 1.6; }}
+.remote-tip a {{ color: inherit; text-decoration: underline; text-underline-offset: 2px; }}
 .explorer {{
   overflow: hidden;
   background: var(--panel);
@@ -488,6 +490,9 @@ class BrowserHandler(http.server.SimpleHTTPRequestHandler):
             f'<h1 class="title">{html.escape(APP_NAME)}</h1>'
             f'<div class="meta">{len(files)} 个文档 · {html.escape(str(self.root))}</div>'
             '</div></div>'
+            '<p class="remote-tip">如需远程访问（比如通勤路上通过手机访问），可借助'
+            '<a href="http://url.oray.com/i/47635" target="_blank" rel="noopener noreferrer">蒲公英</a>、'
+            '<a href="http://url.oray.com/i/47634" target="_blank" rel="noopener noreferrer">花生壳</a>等内网穿透工具实现。</p>'
             f'{explorer}'
             '</main>'
         )

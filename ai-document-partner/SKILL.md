@@ -20,6 +20,7 @@ description: "启动 AI 文档伴侣：一个本地 Web 服务，用新版 Works
 - Markdown 文件实时渲染为 HTML
 - HTML 文件直接展示原始页面
 - 生成 `AI 文档伴侣｜项目名` 风格的浏览器标题，并使用 `assets/icon.ico` 作为 favicon
+- 首页提供远程访问提示，并链接到[蒲公英](http://url.oray.com/i/47635)和[花生壳](http://url.oray.com/i/47634)内网穿透工具
 - 跳过 `.git`、`.cursor`、`.trae`、`.vscode`、`__pycache__`、`node_modules`、`回收站` 等目录
 - 默认从 `8027` 启动；如果端口被占用，自动尝试 `8028`、`8029`，最多尝试 20 个端口
 - 启动后将实际端口写入 `.skill-build/ai-document-partner.port`
