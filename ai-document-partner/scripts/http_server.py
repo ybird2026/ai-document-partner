@@ -6,12 +6,12 @@ from __future__ import annotations
 import argparse
 import html
 import http.server
+import json
 import os
 import re
 import socket
 import socketserver
 import urllib.parse
-from collections import defaultdict
 from datetime import datetime
 from pathlib import Path
 
@@ -21,13 +21,19 @@ DEFAULT_HOST = "0.0.0.0"
 APP_NAME = "AI 文档伴侣"
 SKILL_DIR = Path(__file__).resolve().parents[1]
 FAVICON_PATH = SKILL_DIR / "assets" / "icon.ico"
+ASSET_ROUTES = {
+    "/assets/alpine.min.js": (SKILL_DIR / "assets" / "alpine.min.js", "text/javascript; charset=utf-8"),
+    "/assets/document-browser.js": (
+        SKILL_DIR / "assets" / "document-browser.js",
+        "text/javascript; charset=utf-8",
+    ),
+    "/assets/ALPINE-LICENSE.md": (
+        SKILL_DIR / "assets" / "ALPINE-LICENSE.md",
+        "text/markdown; charset=utf-8",
+    ),
+}
 PORT_FILE = Path(".skill-build") / "ai-document-partner.port"
 SKIP_DIRS = {".git", ".cursor", ".trae", ".vscode", "__pycache__", "node_modules", "回收站"}
-SORT_LABELS = {"name": "名称", "modified": "修改日期", "type": "类型", "size": "大小"}
-SORT_DEFAULT_DIRECTIONS = {"name": "asc", "modified": "desc", "type": "asc", "size": "desc"}
-DEFAULT_SORT = "modified"
-DEFAULT_SORT_DIR = "desc"
-VALID_SORT_DIRS = {"asc", "desc"}
 
 
 class ThreadingTCPServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
@@ -145,7 +151,7 @@ def build_table(rows: list[list[str]]) -> str:
     return "\n".join(parts)
 
 
-def page(title: str, body: str) -> bytes:
+def page(title: str, body: str, scripts: str = "") -> bytes:
     favicon_version = int(FAVICON_PATH.stat().st_mtime) if FAVICON_PATH.is_file() else 0
     document = f"""<!doctype html>
 <html lang="zh-CN">
@@ -167,6 +173,7 @@ def page(title: str, body: str) -> bytes:
   --code: #111827;
 }}
 * {{ box-sizing: border-box; }}
+[x-cloak] {{ display: none !important; }}
 body {{
   margin: 0;
   background: var(--bg);
@@ -182,6 +189,47 @@ a:hover {{ text-decoration: underline; }}
 .meta {{ color: var(--muted); font-size: 13px; margin-top: 6px; }}
 .remote-tip {{ margin: 0 0 14px; color: var(--muted); font-size: 13px; font-weight: 400; line-height: 1.6; }}
 .remote-tip a {{ color: inherit; text-decoration: underline; text-underline-offset: 2px; }}
+.document-toolbar {{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0 0 10px;
+}}
+.segmented {{
+  display: inline-flex;
+  align-items: center;
+  padding: 2px;
+  background: #e9edf4;
+  border-radius: 6px;
+}}
+.segment-button {{
+  min-height: 28px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: #475467;
+  cursor: pointer;
+  font: inherit;
+  font-size: 13px;
+}}
+.segment-button.active {{
+  background: #ffffff;
+  color: #174ea6;
+  box-shadow: 0 1px 3px rgba(16, 24, 40, 0.14);
+  font-weight: 650;
+}}
+.today-toggle {{
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #475467;
+  cursor: pointer;
+  font-size: 13px;
+  user-select: none;
+}}
+.today-toggle input {{ width: 16px; height: 16px; accent-color: var(--accent); }}
 .explorer {{
   overflow: hidden;
   background: var(--panel);
@@ -207,17 +255,24 @@ a:hover {{ text-decoration: underline; }}
 .file-row > span {{ padding: 0 12px; }}
 .columns > span + span,
 .file-row > span + span {{ border-left: 1px solid var(--line); }}
-.sort-link {{
+.sort-button {{
   display: flex;
   align-items: center;
   justify-content: space-between;
   width: 100%;
   min-width: 0;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
   color: inherit;
+  cursor: pointer;
+  font: inherit;
+  font-weight: inherit;
   text-decoration: none;
 }}
-.sort-link:hover {{ color: var(--accent); text-decoration: none; }}
-.sort-link.active {{ color: #174ea6; }}
+.sort-button:hover {{ color: var(--accent); }}
+.sort-button.active {{ color: #174ea6; }}
 .sort-mark {{ color: var(--accent); font-size: 12px; margin-left: 6px; }}
 .folder {{ border-bottom: 1px solid #edf1f6; }}
 .folder:last-child {{ border-bottom: 0; }}
@@ -256,6 +311,7 @@ a:hover {{ text-decoration: underline; }}
   gap: 8px;
   min-width: 0;
 }}
+.file-name-content {{ min-width: 0; padding: 5px 0; }}
 .doc-icon {{
   display: inline-flex;
   align-items: center;
@@ -272,16 +328,28 @@ a:hover {{ text-decoration: underline; }}
 .doc-icon.md {{ background: #2563eb; }}
 .doc-icon.html {{ background: #0f766e; }}
 .file-title {{
+  display: block;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   color: #111827;
 }}
+.file-path {{
+  display: block;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}}
+.file-row.compact .file-name-content {{ padding: 2px 0; }}
 .date,
 .type,
 .size {{ color: #475467; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }}
 .size {{ text-align: right; }}
 .empty-state {{ padding: 38px 20px; color: var(--muted); text-align: center; }}
+.no-js {{ margin: 0 0 12px; color: #b42318; font-size: 13px; }}
 .content {{
   background: var(--panel);
   border: 1px solid var(--line);
@@ -303,12 +371,13 @@ a:hover {{ text-decoration: underline; }}
 .back {{ display: inline-flex; margin-bottom: 16px; font-weight: 650; }}
 @media (max-width: 700px) {{
   .topbar {{ display: block; }}
+  .document-toolbar {{ align-items: flex-start; flex-direction: column; }}
   .content {{ padding: 18px 16px; }}
   .explorer {{ overflow-x: auto; }}
 }}
 </style>
 </head>
-<body>{body}</body>
+<body>{body}{scripts}</body>
 </html>"""
     return document.encode("utf-8")
 
@@ -352,53 +421,35 @@ def project_label(root: Path) -> str:
     return root.name or str(root)
 
 
-def normalize_sort_params(params: dict[str, list[str]]) -> tuple[str, str]:
-    sort_key = params.get("sort", [DEFAULT_SORT])[0]
-    if sort_key not in SORT_LABELS:
-        return DEFAULT_SORT, DEFAULT_SORT_DIR
-
-    if "dir" not in params:
-        return sort_key, SORT_DEFAULT_DIRECTIONS[sort_key]
-
-    sort_dir = params.get("dir", [""])[0]
-    if sort_dir not in VALID_SORT_DIRS:
-        return DEFAULT_SORT, DEFAULT_SORT_DIR
-    return sort_key, sort_dir
-
-
-def sort_files(paths: list[Path], sort_key: str, sort_dir: str) -> list[Path]:
-    by_name = sorted(paths, key=lambda path: path.name.lower())
-    reverse = sort_dir == "desc"
-    if sort_key == "name":
-        return sorted(by_name, key=lambda path: path.name.lower(), reverse=reverse)
-    if sort_key == "modified":
-        return sorted(by_name, key=lambda path: path.stat().st_mtime, reverse=reverse)
-    if sort_key == "type":
-        return sorted(by_name, key=lambda path: file_type_label(path), reverse=reverse)
-    if sort_key == "size":
-        return sorted(by_name, key=lambda path: path.stat().st_size, reverse=reverse)
-    return sort_files(by_name, DEFAULT_SORT, DEFAULT_SORT_DIR)
+def document_payload(root: Path, path: Path) -> dict[str, str | int]:
+    rel = path.relative_to(root).as_posix()
+    rel_parent = path.parent.relative_to(root).as_posix()
+    folder_key = "" if rel_parent == "." else rel_parent
+    suffix = path.suffix.lower().lstrip(".")
+    kind = "md" if suffix == "md" else "html"
+    stat = path.stat()
+    return {
+        "name": path.name,
+        "rel": rel,
+        "folderKey": folder_key,
+        "folderLabel": folder_label(folder_key),
+        "modifiedMs": int(stat.st_mtime * 1000),
+        "modifiedText": datetime.fromtimestamp(stat.st_mtime).strftime("%Y/%m/%d %H:%M"),
+        "typeLabel": file_type_label(path),
+        "sizeBytes": stat.st_size,
+        "sizeText": format_size(stat.st_size),
+        "kind": kind,
+        "href": "/view?path=" + urllib.parse.quote(rel),
+    }
 
 
-def sort_header(label: str, key: str, current_sort: str, current_dir: str) -> str:
-    is_active = key == current_sort
-    next_dir = "asc" if is_active and current_dir == "desc" else "desc" if is_active else SORT_DEFAULT_DIRECTIONS[key]
-    marker = " ↓" if is_active and current_dir == "desc" else " ↑" if is_active else ""
-    active_class = " active" if is_active else ""
-    href = f"/?sort={urllib.parse.quote(key)}&dir={urllib.parse.quote(next_dir)}"
+def safe_json(data: object) -> str:
     return (
-        f'<a class="sort-link{active_class}" href="{href}">'
-        f'<span>{html.escape(label)}</span><span class="sort-mark">{html.escape(marker)}</span>'
-        '</a>'
+        json.dumps(data, ensure_ascii=False, separators=(",", ":"))
+        .replace("<", "\\u003c")
+        .replace(">", "\\u003e")
+        .replace("&", "\\u0026")
     )
-
-
-def build_columns(current_sort: str, current_dir: str) -> str:
-    headers = "".join(
-        f"<span>{sort_header(label, key, current_sort, current_dir)}</span>"
-        for key, label in SORT_LABELS.items()
-    )
-    return f'<div class="columns">{headers}</div>'
 
 
 class BrowserHandler(http.server.SimpleHTTPRequestHandler):
@@ -410,11 +461,13 @@ class BrowserHandler(http.server.SimpleHTTPRequestHandler):
     def do_GET(self):
         parsed = urllib.parse.urlparse(self.path)
         if parsed.path in {"", "/"}:
-            params = urllib.parse.parse_qs(parsed.query)
-            self.send_index(params)
+            self.send_index()
             return
         if parsed.path == "/favicon.ico":
             self.send_favicon()
+            return
+        if parsed.path in ASSET_ROUTES:
+            self.send_asset(parsed.path)
             return
         if parsed.path == "/view":
             params = urllib.parse.parse_qs(parsed.query)
@@ -435,68 +488,112 @@ class BrowserHandler(http.server.SimpleHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(data)
 
-    def send_index(self, params: dict[str, list[str]]) -> None:
-        current_sort, current_dir = normalize_sort_params(params)
-        files = list_files(self.root)
-        groups: dict[str, list[Path]] = defaultdict(list)
-        for path in files:
-            rel_parent = path.parent.relative_to(self.root).as_posix()
-            groups["" if rel_parent == "." else rel_parent].append(path)
+    def send_asset(self, route: str) -> None:
+        path, content_type = ASSET_ROUTES[route]
+        if not path.is_file():
+            self.send_error(404, "Asset not found")
+            return
+        data = path.read_bytes()
+        self.send_response(200)
+        self.send_header("Content-Type", content_type)
+        self.send_header("Cache-Control", "public, max-age=86400")
+        self.send_header("Content-Length", str(len(data)))
+        self.end_headers()
+        self.wfile.write(data)
 
-        sections = []
-        for folder in sorted(groups.keys(), key=lambda value: (value != "", value.lower())):
-            rows = []
-            for path in sort_files(groups[folder], current_sort, current_dir):
-                rel = path.relative_to(self.root).as_posix()
-                suffix = path.suffix.lower().lstrip(".")
-                kind = "md" if suffix == "md" else "html"
-                stat = path.stat()
-                modified = datetime.fromtimestamp(stat.st_mtime).strftime("%Y/%m/%d %H:%M")
-                size = format_size(stat.st_size)
-                doc_type = file_type_label(path)
-                href = "/view?path=" + urllib.parse.quote(rel)
-                rows.append(
-                    f'<a class="file-row" href="{href}" title="{html.escape(rel)}" target="_blank" rel="noopener noreferrer">'
-                    f'<span class="file-name"><span class="doc-icon {kind}">{kind.upper()}</span>'
-                    f'<span class="file-title">{html.escape(path.name)}</span></span>'
-                    f'<span class="date">{html.escape(modified)}</span>'
-                    f'<span class="type">{html.escape(doc_type)}</span>'
-                    f'<span class="size">{html.escape(size)}</span>'
-                    '</a>'
-                )
-            folder_text = folder_label(folder)
-            sections.append(
-                '<details class="folder" open>'
-                f'<summary><span class="folder-name">{html.escape(folder_text)}</span>'
-                f'<span class="folder-count">({len(rows)})</span></summary>'
-                f'{"".join(rows)}'
-                '</details>'
-            )
-
-        if sections:
-            explorer = (
-                '<section class="explorer">'
-                f'{build_columns(current_sort, current_dir)}'
-                f'{"".join(sections)}'
-                '</section>'
-            )
-        else:
-            explorer = '<section class="explorer"><div class="empty-state">当前目录没有 Markdown 或 HTML 文档</div></section>'
-
+    def send_index(self) -> None:
+        documents = [document_payload(self.root, path) for path in list_files(self.root)]
+        documents_json = safe_json(documents)
         project_name = project_label(self.root)
         body = (
-            '<main class="shell">'
+            '<main class="shell" x-data="documentBrowser">'
             '<div class="topbar"><div>'
             f'<h1 class="title">{html.escape(APP_NAME)}</h1>'
-            f'<div class="meta">{len(files)} 个文档 · {html.escape(str(self.root))}</div>'
+            f'<div class="meta"><span x-text="visibleCount">{len(documents)}</span> 个文档 · '
+            f'{html.escape(str(self.root))}</div>'
             '</div></div>'
             '<p class="remote-tip">如需远程访问（比如通勤路上通过手机访问），可借助'
             '<a href="http://url.oray.com/i/47635" target="_blank" rel="noopener noreferrer">蒲公英</a>、'
             '<a href="http://url.oray.com/i/47634" target="_blank" rel="noopener noreferrer">花生壳</a>等内网穿透工具实现。</p>'
-            f'{explorer}'
+            '<div class="document-toolbar" x-cloak>'
+            '<div class="segmented" aria-label="文档视图">'
+            '<button class="segment-button" :class="{ active: view === \'all\' }" '
+            '@click="setView(\'all\')" type="button">全部文档</button>'
+            '<button class="segment-button" :class="{ active: view === \'folders\' }" '
+            '@click="setView(\'folders\')" type="button">按文件夹</button>'
+            '</div>'
+            '<label class="today-toggle">'
+            '<input type="checkbox" :checked="filter === \'today\'" @change="toggleToday()">'
+            '<span>今天修改</span>'
+            '</label>'
+            '</div>'
+            '<noscript><p class="no-js">需要启用 JavaScript 才能使用排序、筛选和视图切换。</p></noscript>'
+            '<section class="explorer" x-cloak>'
+            '<div class="columns">'
+            '<span><button class="sort-button" :class="{ active: sort === \'name\' }" '
+            '@click="sortBy(\'name\')" type="button"><span>名称</span>'
+            '<span class="sort-mark" x-text="sortMarker(\'name\')"></span></button></span>'
+            '<span><button class="sort-button" :class="{ active: sort === \'modified\' }" '
+            '@click="sortBy(\'modified\')" type="button"><span>修改日期</span>'
+            '<span class="sort-mark" x-text="sortMarker(\'modified\')"></span></button></span>'
+            '<span><button class="sort-button" :class="{ active: sort === \'type\' }" '
+            '@click="sortBy(\'type\')" type="button"><span>类型</span>'
+            '<span class="sort-mark" x-text="sortMarker(\'type\')"></span></button></span>'
+            '<span><button class="sort-button" :class="{ active: sort === \'size\' }" '
+            '@click="sortBy(\'size\')" type="button"><span>大小</span>'
+            '<span class="sort-mark" x-text="sortMarker(\'size\')"></span></button></span>'
+            '</div>'
+            '<div x-show="view === \'all\'">'
+            '<template x-for="document in visibleDocuments" :key="document.rel">'
+            '<a class="file-row" :href="document.href" :title="document.rel" '
+            'target="_blank" rel="noopener noreferrer">'
+            '<span class="file-name"><span class="doc-icon" :class="document.kind" '
+            'x-text="document.kind.toUpperCase()"></span>'
+            '<span class="file-name-content"><span class="file-title" x-text="document.name"></span>'
+            '<span class="file-path" x-text="document.folderLabel"></span></span></span>'
+            '<span class="date" x-text="document.modifiedText"></span>'
+            '<span class="type" x-text="document.typeLabel"></span>'
+            '<span class="size" x-text="document.sizeText"></span>'
+            '</a>'
+            '</template>'
+            '</div>'
+            '<div x-show="view === \'folders\'">'
+            '<template x-for="group in groups" :key="group.key">'
+            '<details class="folder" open>'
+            '<summary><span class="folder-name" x-text="group.label"></span>'
+            '<span class="folder-count" x-text="`(${group.documents.length})`"></span></summary>'
+            '<template x-for="document in group.documents" :key="document.rel">'
+            '<a class="file-row compact" :href="document.href" :title="document.rel" '
+            'target="_blank" rel="noopener noreferrer">'
+            '<span class="file-name"><span class="doc-icon" :class="document.kind" '
+            'x-text="document.kind.toUpperCase()"></span>'
+            '<span class="file-name-content"><span class="file-title" x-text="document.name"></span>'
+            '</span></span>'
+            '<span class="date" x-text="document.modifiedText"></span>'
+            '<span class="type" x-text="document.typeLabel"></span>'
+            '<span class="size" x-text="document.sizeText"></span>'
+            '</a>'
+            '</template>'
+            '</details>'
+            '</template>'
+            '</div>'
+            '<div class="empty-state" x-show="visibleCount === 0">'
+            '<span x-text="filter === \'today\' ? \'今天没有修改过的文档\' : '
+            '\'当前目录没有 Markdown 或 HTML 文档\'"></span>'
+            '</div>'
+            '</section>'
+            f'<script type="application/json" id="document-data">{documents_json}</script>'
             '</main>'
         )
-        self.send_bytes(page(f"{APP_NAME}｜{project_name}", body))
+        browser_js_path = ASSET_ROUTES["/assets/document-browser.js"][0]
+        alpine_js_path = ASSET_ROUTES["/assets/alpine.min.js"][0]
+        browser_js_version = int(browser_js_path.stat().st_mtime)
+        alpine_js_version = int(alpine_js_path.stat().st_mtime)
+        scripts = (
+            f'<script defer src="/assets/document-browser.js?v={browser_js_version}"></script>'
+            f'<script defer src="/assets/alpine.min.js?v={alpine_js_version}"></script>'
+        )
+        self.send_bytes(page(f"{APP_NAME}｜{project_name}", body, scripts=scripts))
 
     def send_file_view(self, rel: str) -> None:
         target = (self.root / rel).resolve()

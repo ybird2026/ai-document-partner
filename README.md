@@ -7,8 +7,10 @@ AI 文档伴侣是一个 AI Skill，用来在本地启动 Workspace 风格的 Ma
 ## 能做什么
 
 - 扫描指定目录下的 `.md`、`.html`、`.htm` 文件。
-- 按目录分组展示文件列表。
-- 支持按名称、修改日期、类型、大小排序；默认各文件夹内按修改日期倒序。
+- 默认合并所有目录中的文档，并按修改日期倒序展示。
+- 支持“全部文档 / 按文件夹”无刷新切换。
+- 支持按名称、修改日期、类型、大小即时排序。
+- 支持“今天修改”筛选，并在全局列表中显示文档所在目录。
 - 显示文件类型、修改时间和文件大小。
 - 点击文件时新窗口打开预览。
 - Markdown 文件实时渲染为 HTML。
@@ -25,6 +27,9 @@ ai-document-partner/
 ├── agents/
 │   └── openai.yaml
 ├── assets/
+│   ├── ALPINE-LICENSE.md
+│   ├── alpine.min.js
+│   ├── document-browser.js
 │   └── icon.ico
 └── scripts/
     └── http_server.py
